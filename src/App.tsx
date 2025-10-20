@@ -85,7 +85,7 @@ const initializeChatAtom = runtimeAtom.fn()(
   }),
 );
 
-const insertCharAtom = Atom.fn()(
+const insertCharAtom = Atom.fn<string>()(
   Effect.fnUntraced(function* (char, get) {
     const state = get(textBufferStateAtom);
     const { lines, cursor } = state;
@@ -135,7 +135,7 @@ const deleteCharAtom = Atom.fn()(
   }),
 );
 
-const clearTextBufferAtom = Atom.fn(
+const clearTextBufferAtom = Atom.fn()(
   Effect.fnUntraced(function* (_, get) {
     get.set(textBufferStateAtom, {
       lines: [""],
@@ -256,8 +256,6 @@ const CommandInput: React.FC = () => {
     </Box>
   );
 };
-
-
 
 const UI: React.FC<{ config: Config; onExit: () => void }> = ({
   config,
