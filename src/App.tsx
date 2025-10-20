@@ -46,6 +46,15 @@ const textBufferStringAtom = Atom.make((get) => {
   return state.lines.join("\n");
 });
 
+const textBufferWithCursorStringAtom = Atom.make((get) => {
+  // TODO: consider multiline
+  const {
+    cursor: { column },
+  } = get(textBufferStateAtom);
+  const text = get(textBufferStringAtom);
+  return text.slice(0, column) + "|" + text.slice(column);
+});
+
 const textBufferIsEmptyAtom = Atom.make((get) => {
   const text = get(textBufferStringAtom);
   return text.trim().length === 0;
@@ -99,6 +108,22 @@ const insertCharAtom = Atom.fn<string>()(
       lines: newLines,
       cursor: { row: cursor.row, column: cursor.column + 1 },
     });
+  }),
+);
+
+const moveCursorAtom = Atom.fn<"left" | "right">()(
+  Effect.fnUntraced(function* (direction, get) {
+    const state = get(textBufferStateAtom);
+    const columnModifier = direction === "left" ? -1 : 1;
+    const futureColumn = state.cursor.column + columnModifier;
+    const lastLineLenght = state.lines.at(-1)?.length ?? Infinity;
+    if (futureColumn < 0 || futureColumn > lastLineLenght) return;
+
+    get.set(textBufferStateAtom, {
+      ...state,
+      cursor: { row: state.cursor.row, column: futureColumn },
+    });
+    console.log(`Moving to the ${direction}`);
   }),
 );
 
@@ -235,7 +260,7 @@ const MessageDisplay: React.FC = () => {
 };
 
 const CommandInput: React.FC = () => {
-  const text = useAtomValue(textBufferStringAtom);
+  const text = useAtomValue(textBufferWithCursorStringAtom);
   const isEmpty = useAtomValue(textBufferIsEmptyAtom);
   const cursorPos = useAtomValue(textBufferStateAtom).cursor;
 
@@ -271,6 +296,7 @@ const UI: React.FC<{ config: Config; onExit: () => void }> = ({
   const deleteChar = useAtomSet(deleteCharAtom);
   const clearBuffer = useAtomSet(clearTextBufferAtom);
   const sendMessage = useAtomSet(sendMessageAtom);
+  const moveCursor = useAtomSet(moveCursorAtom);
 
   useEffect(() => {
     if (!lastKey) return;
@@ -302,6 +328,8 @@ const UI: React.FC<{ config: Config; onExit: () => void }> = ({
       deleteChar("");
     } else if (lastKey.ctrl && lastKey.name === "u") {
       clearBuffer("");
+    } else if (lastKey.name === "left" || lastKey.name === "right") {
+      moveCursor(lastKey.name);
     } else if (
       lastKey.sequence.length === 1 &&
       !lastKey.ctrl &&
