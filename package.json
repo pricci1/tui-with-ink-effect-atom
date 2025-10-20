@@ -1,0 +1,22 @@
+{
+  "name": "tmp.ukrhbmxjom",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19.2.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@effect-atom/atom-react": "^0.3.3",
+    "@effect/cli": "^0.71.0",
+    "@effect/platform-node": "^0.98.4",
+    "effect": "^3.18.4",
+    "ink": "^6.3.1",
+    "jotai": "^2.15.0",
+    "react": "^19.2.0"
+  }
+}
