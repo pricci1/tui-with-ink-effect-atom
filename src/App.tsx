@@ -1,11 +1,10 @@
 import React, { useEffect } from "react";
 import { Box, Text, useStdin } from "ink";
-import { Effect, Layer, Stream } from "effect";
+import { Effect, Layer, Stream, Match } from "effect";
 import {
   Atom,
   useAtomValue,
-  useAtomSet,
-  useAtom,
+  useAtomSet
 } from "@effect-atom/atom-react";
 import readline from "readline";
 import { type Message, type Config } from "./schemas";
@@ -74,6 +73,54 @@ const sendMessageAtom = runtimeAtom.fn(
   }),
 );
 
+const handleKeyEventAtom = runtimeAtom.fn<Key>()(
+  Effect.fnUntraced(function* (key, get) {
+    const mode = get(inputModeAtom);
+    const isEmpty = get(textBufferIsEmptyAtom);
+    const text = get(textBufferStringAtom);
+
+    yield* Match.value(key).pipe(
+      Match.when({ ctrl: true, name: "c" }, () =>
+        Effect.sync(() => process.exit(0))
+      ),
+      Match.when({ ctrl: true, name: "a" }, () =>
+        Effect.sync(() => {
+          get.set(inputModeAtom, mode === "help" ? "normal" : "help");
+        })
+      ),
+      Match.when(
+        () => mode === "help",
+        () => Effect.void
+      ),
+      Match.when({ name: "return" }, () =>
+        Effect.sync(() => {
+          if (!isEmpty) {
+            get.set(isStreamingAtom, true);
+            get.set(sendMessageAtom, text);
+            get.set(clearTextBufferAtom, "");
+            setTimeout(() => get.set(isStreamingAtom, false), 600);
+          }
+        })
+      ),
+      Match.when({ name: "backspace" }, () =>
+        Effect.sync(() => get.set(deleteCharAtom, ""))
+      ),
+      Match.when({ ctrl: true, name: "u" }, () =>
+        Effect.sync(() => get.set(clearTextBufferAtom, ""))
+      ),
+      Match.when(
+        (k) => k.name === "left" || k.name === "right",
+        (k) => Effect.sync(() => get.set(moveCursorAtom, k.name))
+      ),
+      Match.when(
+        (k) => k.sequence.length === 1 && !k.ctrl && !k.meta,
+        (k) => Effect.sync(() => get.set(insertCharAtom, k.sequence))
+      ),
+      Match.orElse(() => Effect.void)
+    );
+  }),
+);
+
 const initializeChatAtom = runtimeAtom.fn()(
   Effect.fnUntraced(function* (_, get) {
     const chat = yield* ChatService;
@@ -123,7 +170,6 @@ const moveCursorAtom = Atom.fn<"left" | "right">()(
       ...state,
       cursor: { row: state.cursor.row, column: futureColumn },
     });
-    console.log(`Moving to the ${direction}`);
   }),
 );
 
@@ -287,57 +333,14 @@ const UI: React.FC<{ config: Config; onExit: () => void }> = ({
   onExit,
 }) => {
   const lastKey = useAtomValue(lastKeyEventAtom);
-  const [mode, setMode] = useAtom(inputModeAtom);
-  const isEmpty = useAtomValue(textBufferIsEmptyAtom);
-  const text = useAtomValue(textBufferStringAtom);
-  const setIsStreaming = useAtomSet(isStreamingAtom);
-
-  const insertChar = useAtomSet(insertCharAtom);
-  const deleteChar = useAtomSet(deleteCharAtom);
-  const clearBuffer = useAtomSet(clearTextBufferAtom);
-  const sendMessage = useAtomSet(sendMessageAtom);
-  const moveCursor = useAtomSet(moveCursorAtom);
+  const mode = useAtomValue(inputModeAtom);
+  const handleKeyEvent = useAtomSet(handleKeyEventAtom);
 
   useEffect(() => {
     if (!lastKey) return;
 
-    if (lastKey.ctrl && lastKey.name === "c") {
-      onExit();
-      return;
-    }
-
-    if (lastKey.ctrl && lastKey.name === "a") {
-      setMode(mode === "help" ? "normal" : "help");
-      return;
-    }
-
-    // Help mode - consume all keys except exit
-    if (mode === "help") {
-      return;
-    }
-
-    // Normal mode - text editing
-    if (lastKey.name === "return") {
-      if (!isEmpty) {
-        setIsStreaming(true);
-        sendMessage(text);
-        clearBuffer("");
-        setTimeout(() => setIsStreaming(false), 600);
-      }
-    } else if (lastKey.name === "backspace") {
-      deleteChar("");
-    } else if (lastKey.ctrl && lastKey.name === "u") {
-      clearBuffer("");
-    } else if (lastKey.name === "left" || lastKey.name === "right") {
-      moveCursor(lastKey.name);
-    } else if (
-      lastKey.sequence.length === 1 &&
-      !lastKey.ctrl &&
-      !lastKey.meta
-    ) {
-      insertChar(lastKey.sequence);
-    }
-  }, [lastKey]);
+    handleKeyEvent(lastKey);
+  }, [lastKey, handleKeyEvent]);
 
   return (
     <Box flexDirection="column" height="100%">
