@@ -108,8 +108,9 @@ const handleKeyEventAtom = runtimeAtom.fn<Key>()(
       Match.when({ ctrl: true, name: "u" }, () =>
         Effect.sync(() => get.set(clearTextBufferAtom, ""))
       ),
-      Match.when(
-        (k) => k.name === "left" || k.name === "right",
+      Match.whenOr(
+        {name: "left"},
+        {name: "right"},
         (k) => Effect.sync(() => get.set(moveCursorAtom, k.name))
       ),
       Match.when(
