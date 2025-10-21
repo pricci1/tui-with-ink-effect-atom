@@ -1,11 +1,7 @@
 import React, { useEffect } from "react";
 import { Box, Text, useStdin } from "ink";
 import { Effect, Layer, Stream, Match } from "effect";
-import {
-  Atom,
-  useAtomValue,
-  useAtomSet
-} from "@effect-atom/atom-react";
+import { Atom, useAtomValue, useAtomSet } from "@effect-atom/atom-react";
 import readline from "readline";
 import { type Message, type Config } from "./schemas";
 import { ChatService, ChatServiceLive } from "./ChatService";
@@ -81,16 +77,16 @@ const handleKeyEventAtom = runtimeAtom.fn<Key>()(
 
     yield* Match.value(key).pipe(
       Match.when({ ctrl: true, name: "c" }, () =>
-        Effect.sync(() => process.exit(0))
+        Effect.sync(() => process.exit(0)),
       ),
       Match.when({ ctrl: true, name: "a" }, () =>
         Effect.sync(() => {
           get.set(inputModeAtom, mode === "help" ? "normal" : "help");
-        })
+        }),
       ),
       Match.when(
         () => mode === "help",
-        () => Effect.void
+        () => Effect.void,
       ),
       Match.when({ name: "return" }, () =>
         Effect.sync(() => {
@@ -100,24 +96,22 @@ const handleKeyEventAtom = runtimeAtom.fn<Key>()(
             get.set(clearTextBufferAtom, "");
             setTimeout(() => get.set(isStreamingAtom, false), 600);
           }
-        })
+        }),
       ),
       Match.when({ name: "backspace" }, () =>
-        Effect.sync(() => get.set(deleteCharAtom, ""))
+        Effect.sync(() => get.set(deleteCharAtom, "")),
       ),
       Match.when({ ctrl: true, name: "u" }, () =>
-        Effect.sync(() => get.set(clearTextBufferAtom, ""))
+        Effect.sync(() => get.set(clearTextBufferAtom, "")),
       ),
-      Match.whenOr(
-        {name: "left"},
-        {name: "right"},
-        (k) => Effect.sync(() => get.set(moveCursorAtom, k.name))
+      Match.whenOr({ name: "left" }, { name: "right" }, (k) =>
+        Effect.sync(() => get.set(moveCursorAtom, k.name)),
       ),
       Match.when(
         (k) => k.sequence.length === 1 && !k.ctrl && !k.meta,
-        (k) => Effect.sync(() => get.set(insertCharAtom, k.sequence))
+        (k) => Effect.sync(() => get.set(insertCharAtom, k.sequence)),
       ),
-      Match.orElse(() => Effect.void)
+      Match.orElse(() => Effect.void),
     );
   }),
 );
