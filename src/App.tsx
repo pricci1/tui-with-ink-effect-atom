@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Box, Text, useStdin } from "ink";
-import { Effect, Layer, Stream, Match, Option } from "effect";
+import { Effect, Layer, Stream, Match, Option, Array } from "effect";
 import { Atom, useAtomValue, useAtomSet } from "@effect-atom/atom-react";
 import readline from "readline";
 import { type Message, type Config } from "./schemas";
@@ -142,15 +142,21 @@ const insertCharAtom = Atom.fn<string>()(
   Effect.fnUntraced(function* (char, get) {
     const state = get(textBufferStateAtom);
     const { lines, cursor } = state;
-    const line = lines[cursor.row]!;
-    const newLine =
-      line.slice(0, cursor.column) + char + line.slice(cursor.column);
-    const newLines = [...lines];
-    newLines[cursor.row] = newLine;
 
-    get.set(textBufferStateAtom, {
-      lines: newLines,
-      cursor: { row: cursor.row, column: cursor.column + 1 },
+    Option.gen(function* () {
+      const line = yield* Array.get(lines, cursor.row);
+      const newLineAsArray = yield* Array.insertAt(
+        Array.fromIterable(line),
+        cursor.column,
+        char,
+      );
+      const newLine = Array.join(newLineAsArray, "");
+      const newLines = Array.replace(lines, cursor.row, newLine);
+
+      get.set(textBufferStateAtom, {
+        lines: newLines,
+        cursor: { row: cursor.row, column: cursor.column + 1 },
+      });
     });
   }),
 );
