@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Box, Text, useStdin } from "ink";
-import { Effect, Layer, Stream, Match } from "effect";
+import { Effect, Layer, Stream, Match, Option } from "effect";
 import { Atom, useAtomValue, useAtomSet } from "@effect-atom/atom-react";
 import readline from "readline";
 import { type Message, type Config } from "./schemas";
@@ -20,7 +20,9 @@ interface Key {
   shift: boolean;
 }
 
-const lastKeyEventAtom = Atom.make<Key | null>(null).pipe(Atom.keepAlive);
+const lastKeyEventAtom = Atom.make<Option.Option<Key>>(Option.none()).pipe(
+  Atom.keepAlive,
+);
 
 const inputModeAtom = Atom.make<"normal" | "help">("normal").pipe(
   Atom.keepAlive,
@@ -239,7 +241,7 @@ const KeyboardProvider: React.FC<{ children: React.ReactNode }> = ({
           meta: key.meta || false,
           shift: key.shift || false,
         };
-        setLastKey(parsedKey);
+        setLastKey(Option.some(parsedKey));
       }
     };
 
@@ -332,9 +334,7 @@ const UI: React.FC<{ config: Config; onExit: () => void }> = ({
   const handleKeyEvent = useAtomSet(handleKeyEventAtom);
 
   useEffect(() => {
-    if (!lastKey) return;
-
-    handleKeyEvent(lastKey);
+    Option.map(lastKey, handleKeyEvent);
   }, [lastKey, handleKeyEvent]);
 
   return (
